@@ -21,6 +21,32 @@
 <pre id="thanksOutput"></pre>
 
 <script>
+// Load pincode data
+let pincodeLatLng = {};
+fetch('pincode_data.json')
+  .then(response => response.json())
+  .then(data => { pincodeLatLng = data; })
+  .catch(error => console.log("Error loading pincode data:", error));
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c;
+}
+
+function estimateDeliveryByDistance(distance) {
+  if (distance <= 30) return "1 day";
+  else if (distance <= 60) return "1-2 days";
+  else if (distance <= 100) return "2-3 days";
+  else if (distance <= 200) return "3-4 days";
+  else if (distance <= 500) return "4-5 days";
+  else if (distance <= 1000) return "4-6 days";
+  else if (distance <= 1500) return "5–7 days";
+  else if (distance <= 2000) return "6–8 days";
+  else if (distance <= 3000) return "6–10 days";
+  else return "8–12 days (sometimes up to 15 days)";
+}
+
 function convertThanks() {
   let input = document.getElementById("thanksInput").value;
 
@@ -36,20 +62,25 @@ function convertThanks() {
   let name = extract("Name") || "Customer";
   let product = extract("Product") || "your ordered product";
   let pincode = extract("Pincode") || "";
-  let distance = extract("Distance") || "";
-  let eta = extract("Estimated Delivery") || "few days";
 
-  if(distance && !distance.includes("km")) distance += " km";
+  // Calculate distance & ETA if pincode found in database
+  let distance = "", eta = "few days";
+  if (pincode && pincodeLatLng[pincode]) {
+    let dest = pincodeLatLng[pincode];
+    let distKm = haversine(28.8,79.0,dest.lat,dest.lng).toFixed(0);
+    distance = distKm + " km";
+    eta = estimateDeliveryByDistance(parseInt(distKm));
+  }
 
   let thanksMsg = 
 `🌟 GamesPlanet
 🙏 Hello ${name} ji, thank you for your order ${orderId}.
 📦 Product: ${product}
-📍 Pincode: ${pincode}${distance ? " | 📏 Distance: " + distance : ""}
+📍 Pincode: ${pincode} | 📏 Distance: ${distance}
 ⏳ Estimated Delivery: ${eta}
 🚚 Your order will be shipped soon between 8PM–10PM.
 🔗 Tracking will update on our website after dispatch.
-🖼️ On request, we can send *parcel pic & tracking
+🖼️ On request, we can send *parcel pic & tracking number* here on WhatsApp.
 💚 Team GamesPlanet`;
 
   document.getElementById("thanksOutput").textContent = thanksMsg;
